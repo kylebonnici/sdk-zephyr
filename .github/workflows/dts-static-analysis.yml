@@ -1,0 +1,63 @@
+name: DTS static analysis
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "**/*.dts"
+      - "**/*.dtsi"
+
+jobs:
+  dts-static-analysis:
+    name: DTS Nordic boards static analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dts-linter
+        run: |
+          npm install -g dts-linter@beta
+
+      - name: Collect DTS files
+        id: collect_dts
+        run: |
+          set -e
+
+          files=""
+          echo "Found DTS/DTSI files:"
+          while IFS= read -r file; do
+            echo "  - $file"
+            files="$files --file $file"
+          done < <(find ./boards/nordic -type f \( -name "*.dts" \))
+
+          if [ -z "$files" ]; then
+            echo "No DTS files found!"
+            exit 1
+          fi
+
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "files=$files" 
+
+      - name: Run dts-linter
+        run: |
+          set -e
+
+          dts-linter \
+            --diagnosticsFull \
+            ${{ steps.collect_dts.outputs.files }} \
+            --include ./dts \
+            --include ./dts/arm \
+            --include ./dts/arm64 \
+            --include ./dts/riscv \
+            --include ./dts/common \
+            --include ./dts/vendor \
+            --include ./include \
+            --include ./include/zephyr \
+            --binding ./dts/bindings
